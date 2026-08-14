@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Research interview</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <p class="eyebrow">FIELD NOTES / LIVE INTERVIEW</p>
+      <h1>Research interview</h1>
+      <p class="intro">A short conversation about what matters to you.</p>
+    </header>
+
+    <section class="interview" aria-labelledby="interview-title">
+      <div class="session-line">
+        <span id="connection-dot" class="dot" aria-hidden="true"></span>
+        <span id="connection-status" aria-live="polite">Ready to begin</span>
+      </div>
+      <h2 id="interview-title">Choose your language</h2>
+      <div class="language-choice" role="group" aria-label="Interview language">
+        <button class="language selected" data-language="English" type="button">English</button>
+        <button class="language" data-language="Chinese" type="button">中文</button>
+      </div>
+
+      <details class="study-setup" open>
+        <summary>Study setup</summary>
+        <label for="study-topic">Topic / product</label>
+        <input id="study-topic" class="study-field" type="text" maxlength="300" placeholder="e.g. Home coffee routines">
+        <label for="study-client">Client or project context</label>
+        <input id="study-client" class="study-field" type="text" maxlength="2000" placeholder="e.g. A small appliance client">
+        <label for="study-audience">Target audience</label>
+        <input id="study-audience" class="study-field" type="text" maxlength="1000" placeholder="e.g. People who brew coffee at home">
+        <label for="study-objective">Objective</label>
+        <input id="study-objective" class="study-field" type="text" maxlength="2000" placeholder="e.g. Understand morning routine pain points">
+        <label for="study-questions">Optional questions to explore</label>
+        <textarea id="study-questions" class="study-field" rows="3" maxlength="4000" placeholder="One question per line. Optional."></textarea>
+      </details>
+
+      <p class="consent">Participation is voluntary. You may skip any question or stop at any time.</p>
+      <label class="resume-label" for="resume-id">Continue a previous interview</label>
+      <input id="resume-id" class="resume-id" type="text" maxlength="100" autocomplete="off" placeholder="Interview record ID, optional">
+      <button id="start" class="start" type="button">Start interview</button>
+      <button id="end" class="end" type="button" hidden>End interview</button>
+      <p id="message" class="message" role="alert"></p>
+    </section>
+
+    <section class="record" aria-label="Interview record">
+      <div>
+        <p class="record-label">INTERVIEW RECORD</p>
+        <output id="interview-id">Not started</output>
+      </div>
+      <button id="copy-id" class="copy" type="button" disabled aria-label="Copy interview ID">Copy</button>
+    </section>
+  </main>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

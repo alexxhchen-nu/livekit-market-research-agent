@@ -1,0 +1,25 @@
+[project]
+name = "livekit-market-research-agent"
+version = "0.1.0"
+description = "Bilingual LiveKit market-research voice agent"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "livekit-agents>=1.4",
+    "livekit-api>=1.0",
+    "python-dotenv>=1.0",
+    "uvicorn[standard]>=0.30",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=0.1",
+    "playwright>=1.62.0",
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[tool.uv]
+package = false
