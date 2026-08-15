@@ -12,6 +12,8 @@ const dot = document.querySelector("#connection-dot");
 const message = document.querySelector("#message");
 const interviewId = document.querySelector("#interview-id");
 const resumeId = document.querySelector("#resume-id");
+const downloadJson = document.querySelector("#download-json");
+const downloadCsv = document.querySelector("#download-csv");
 const languageButtons = [...document.querySelectorAll(".language")];
 
 const studyFields = {
@@ -25,6 +27,7 @@ const studyFields = {
 let language = "English";
 let room;
 let currentInterviewId;
+let currentDownloadToken;
 
 function setStatus(text, connected = false) {
   status.textContent = text;
@@ -38,6 +41,11 @@ function showMessage(text) {
 function selectLanguage(button) {
   language = button.dataset.language;
   languageButtons.forEach((item) => item.classList.toggle("selected", item === button));
+}
+
+function resumeToken() {
+  const id = resumeId.value.trim();
+  return id ? localStorage.getItem(`research-resume-token:${id}`) : null;
 }
 
 function collectStudy() {
@@ -56,12 +64,35 @@ async function requestSession() {
     body: JSON.stringify({
       language,
       interview_id: resumeId.value.trim() || null,
+      resume_token: resumeToken(),
       study: collectStudy(),
     }),
   });
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.detail || "Could not start the interview.");
   return payload;
+}
+
+function setDownloadState() {
+  const ready = Boolean(currentInterviewId && currentDownloadToken);
+  downloadJson.disabled = !ready;
+  downloadCsv.disabled = !ready;
+}
+
+async function downloadResults(format) {
+  const response = await fetch(`/api/interviews/${encodeURIComponent(currentInterviewId)}/export/${format}`, {
+    headers: { "X-Download-Token": currentDownloadToken },
+  });
+  if (!response.ok) {
+    showMessage(response.status === 401 ? "This interview's download token is invalid." : "Results are not available yet.");
+    return;
+  }
+  const blob = await response.blob();
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `${currentInterviewId}.${format}`;
+  link.click();
+  URL.revokeObjectURL(link.href);
 }
 
 function attachRemoteAudio(track) {
@@ -79,8 +110,11 @@ async function startInterview() {
   try {
     const session = await requestSession();
     currentInterviewId = session.interview_id;
+    currentDownloadToken = session.download_token;
+    localStorage.setItem(`research-resume-token:${currentInterviewId}`, currentDownloadToken);
     interviewId.value = currentInterviewId;
     copyButton.disabled = false;
+    setDownloadState();
 
     room = new Room({ adaptiveStream: true, dynacast: true });
     room.on(RoomEvent.TrackSubscribed, attachRemoteAudio);
@@ -118,3 +152,5 @@ languageButtons.forEach((button) => button.addEventListener("click", () => selec
 startButton.addEventListener("click", startInterview);
 endButton.addEventListener("click", endInterview);
 copyButton.addEventListener("click", copyInterviewId);
+downloadJson.addEventListener("click", () => downloadResults("json"));
+downloadCsv.addEventListener("click", () => downloadResults("csv"));

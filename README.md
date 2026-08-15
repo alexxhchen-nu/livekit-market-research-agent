@@ -7,7 +7,8 @@ Bilingual Chinese and English browser voice interviewer for consented market res
 - LiveKit browser voice client at `http://127.0.0.1:8010`.
 - LiveKit Python Agent with concise interview instructions and interruption support.
 - Structured answer tool, shared-secret protected API, SQLite persistence.
-- Resumable interviews: pass the displayed interview ID to `POST /api/token` as `interview_id` from a trusted internal client.
+- Resumable interviews: pass the displayed interview ID to `POST /api/token` as `interview_id` from a trusted internal client. The browser stores the scoped resume token locally.
+- Per-interview JSON and CSV download buttons. Results are stored locally in `data/research.db`.
 - No raw audio recording, user login, phone support, cloud database, or analytics dashboard.
 
 ## Setup
@@ -38,7 +39,7 @@ uv run python agent.py dev
 
 The browser requests a short-lived LiveKit participant token from `/api/token`. The token dispatches `market-research-agent` when the participant enters the room. The Agent alone has `RESEARCH_DATA_SECRET`, so it can store confirmed responses at `/api/answers`. The browser never receives either secret.
 
-SQLite data is stored at `data/research.db`. To inspect an interview from a trusted terminal, use the same secret:
+SQLite data is stored at `data/research.db`. The browser receives a per-interview download token, not the server research secret. After starting an interview, use `Download JSON` or `Download CSV`. Trusted operators can inspect an interview from a terminal with the server secret:
 
 ```sh
 curl -H "X-Research-Secret: $RESEARCH_DATA_SECRET" \

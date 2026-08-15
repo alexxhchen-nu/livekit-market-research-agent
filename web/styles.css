@@ -103,6 +103,12 @@ h2 { margin-bottom: 18px; font: 600 20px/1.25 Manrope, sans-serif; }
 output { display: block; overflow-wrap: anywhere; color: #123a3b; font: 400 12px/1.35 "DM Mono", monospace; }
 .copy:disabled { opacity: .4; cursor: not-allowed; }
 
+.download { padding: 22px 40px; border-top: 1px solid #123a3b; }
+.download-hint { margin: 0 0 12px; color: #426260; font-size: 12px; line-height: 1.5; }
+.download-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.download-button { padding: 9px 14px; border: 1px solid #123a3b; border-radius: 0; color: #123a3b; background: transparent; cursor: pointer; }
+.download-button:disabled { opacity: .4; cursor: not-allowed; }
+
 button:focus-visible { outline: 3px solid #f4bd52; outline-offset: 3px; }
 
 @media (max-width: 600px) {

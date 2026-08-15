@@ -1,5 +1,7 @@
+import hashlib
 import json
 import os
+import re
 import secrets
 import sqlite3
 from datetime import timedelta
@@ -8,7 +10,7 @@ from uuid import uuid4
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 from livekit import api
 
@@ -58,6 +60,7 @@ class StudyConfig(BaseModel):
 
 class TokenRequest(BaseModel):
     interview_id: str | None = Field(default=None, max_length=100)
+    resume_token: str | None = Field(default=None, max_length=128)
     language: str = Field(default="English", pattern="^(English|Chinese|mixed)$")
     study: StudyConfig = Field(default_factory=StudyConfig)
 
@@ -81,14 +84,34 @@ def create_app(database_path: Path, research_secret: str) -> FastAPI:
         db.execute(
             """CREATE TABLE IF NOT EXISTS studies (
                 interview_id TEXT PRIMARY KEY,
-                config TEXT NOT NULL
+                config TEXT NOT NULL,
+                download_token_hash TEXT NOT NULL DEFAULT ''
             )"""
         )
+        study_columns = {row[1] for row in db.execute("PRAGMA table_info(studies)")}
+        if "download_token_hash" not in study_columns:
+            try:
+                db.execute("ALTER TABLE studies ADD COLUMN download_token_hash TEXT NOT NULL DEFAULT ''")
+            except sqlite3.OperationalError as error:
+                if "duplicate column name" not in str(error).lower():
+                    raise
         return db
 
     def require_secret(value: str | None):
         if not value or not secrets.compare_digest(value, research_secret):
             raise HTTPException(401, "Unauthorized")
+
+    def require_download_token(interview_id: str, value: str | None, db: sqlite3.Connection):
+        if not value:
+            raise HTTPException(401, "Download token required")
+        row = db.execute(
+            "SELECT download_token_hash FROM studies WHERE interview_id = ?",
+            (interview_id,),
+        ).fetchone()
+        if not row or not row[0] or not secrets.compare_digest(
+            row[0], hashlib.sha256(value.encode()).hexdigest()
+        ):
+            raise HTTPException(401, "Invalid download token")
 
     @app.get("/")
     def index():
@@ -145,6 +168,76 @@ def create_app(database_path: Path, research_secret: str) -> FastAPI:
             "answers": dict(rows),
         }
 
+    def csv_cell(value: str) -> str:
+        return "'" + value if value[:1] in {"=", "+", "-", "@"} else value
+
+    def safe_filename(value: str) -> str:
+        return re.sub(r"[^A-Za-z0-9._-]", "_", value)[:100] or "interview"
+
+    @app.get("/api/interviews/{interview_id}/export/json")
+    def export_json(interview_id: str, x_download_token: str | None = Header(default=None)):
+        with connection() as db:
+            require_download_token(interview_id, x_download_token, db)
+            rows = db.execute(
+                "SELECT field, value FROM answers WHERE interview_id = ?", (interview_id,)
+            ).fetchall()
+            study = db.execute(
+                "SELECT config FROM studies WHERE interview_id = ?", (interview_id,)
+            ).fetchone()
+        if not rows and not study:
+            raise HTTPException(404, "Interview not found")
+        payload = {
+            "interview_id": interview_id,
+            "study": json.loads(study[0]) if study else None,
+            "answers": dict(rows),
+        }
+        return PlainTextResponse(
+            content=json.dumps(payload, ensure_ascii=False),
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f"attachment; filename={safe_filename(interview_id)}.json",
+                "Cache-Control": "no-store",
+                "Vary": "X-Download-Token",
+            },
+        )
+
+    @app.get("/api/interviews/{interview_id}/export/csv")
+    def export_csv(interview_id: str, x_download_token: str | None = Header(default=None)):
+        with connection() as db:
+            require_download_token(interview_id, x_download_token, db)
+            rows = db.execute(
+                "SELECT field, value FROM answers WHERE interview_id = ?", (interview_id,)
+            ).fetchall()
+            study = db.execute(
+                "SELECT config FROM studies WHERE interview_id = ?", (interview_id,)
+            ).fetchone()
+        if not rows and not study:
+            raise HTTPException(404, "Interview not found")
+
+        import csv
+        import io
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["interview_id", "study_topic", "field", "value"])
+        topic = (json.loads(study[0]).get("topic") if study else "") if study else ""
+        for field, value in rows:
+            writer.writerow([
+                csv_cell(interview_id),
+                csv_cell(topic),
+                csv_cell(field),
+                csv_cell(value),
+            ])
+        return PlainTextResponse(
+            content=output.getvalue(),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename={safe_filename(interview_id)}.csv",
+                "Cache-Control": "no-store",
+                "Vary": "X-Download-Token",
+            },
+        )
+
     @app.post("/api/token")
     def token(request: TokenRequest):
         livekit_url = os.environ.get("LIVEKIT_URL")
@@ -155,14 +248,22 @@ def create_app(database_path: Path, research_secret: str) -> FastAPI:
             raise HTTPException(503, "LiveKit is not configured")
 
         interview_id = request.interview_id or str(uuid4())
+        download_token = secrets.token_urlsafe(32)
         with connection() as db:
             existing_study = db.execute(
-                "SELECT config FROM studies WHERE interview_id = ?", (interview_id,)
+                "SELECT config, download_token_hash FROM studies WHERE interview_id = ?", (interview_id,)
             ).fetchone()
-            if not existing_study:
+            if existing_study:
+                if not request.resume_token or not existing_study[1] or not secrets.compare_digest(
+                    existing_study[1], hashlib.sha256(request.resume_token.encode()).hexdigest()
+                ):
+                    raise HTTPException(401, "Resume token required")
+                download_token = request.resume_token
+            else:
+                download_token_hash = hashlib.sha256(download_token.encode()).hexdigest()
                 db.execute(
-                    "INSERT INTO studies (interview_id, config) VALUES (?, ?)",
-                    (interview_id, request.study.model_dump_json()),
+                    "INSERT INTO studies (interview_id, config, download_token_hash) VALUES (?, ?, ?)",
+                    (interview_id, request.study.model_dump_json(), download_token_hash),
                 )
         room = f"research-{interview_id}"
         metadata = json.dumps({"interview_id": interview_id, "language": request.language})
@@ -184,6 +285,7 @@ def create_app(database_path: Path, research_secret: str) -> FastAPI:
             "token": token,
             "room": room,
             "interview_id": interview_id,
+            "download_token": download_token,
             "agent_name": agent_name,
         }
 
