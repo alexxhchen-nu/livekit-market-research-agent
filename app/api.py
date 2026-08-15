@@ -286,6 +286,7 @@ def create_app(database_path: Path, research_secret: str) -> FastAPI:
             "room": room,
             "interview_id": interview_id,
             "download_token": download_token,
+            "recording_enabled": False,
             "agent_name": agent_name,
         }
 

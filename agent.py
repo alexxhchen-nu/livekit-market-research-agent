@@ -11,6 +11,9 @@ from livekit.agents import Agent, AgentServer, AgentSession, JobContext, RunCont
 from app.api import FIELDS
 
 
+RECORDING_OPTIONS = False
+
+
 INSTRUCTIONS = """You are a friendly, neutral bilingual market-research interviewer.
 
 Speak in the participant's preferred language: Chinese, English, or their natural mix. Keep every reply to one or two short sentences. Ask exactly one neutral question at a time. Do not sell, recommend, diagnose, or lead the participant.
@@ -166,7 +169,7 @@ class ResearchAgent(Agent):
 
 
 load_dotenv(".env")
-server = AgentServer()
+server = AgentServer(num_idle_processes=1)
 
 
 @server.rtc_session(agent_name=os.environ.get("LIVEKIT_AGENT_NAME", "market-research-agent"))
@@ -188,14 +191,14 @@ async def entrypoint(ctx: JobContext):
             voice=os.environ.get("LIVEKIT_TTS_VOICE", "f786b574-daa5-4673-aa0c-cbe3e8534c02"),
         ),
         vad=inference.VAD(),
-        allow_interruptions=True,
+        turn_handling={"interruption": {"enabled": True}},
         userdata=ResearchContext(interview_id=interview_id),
     )
     agent = ResearchAgent(interview_id, study_config)
     if prior_answers.get("consent_status") == "consented":
         agent.consented = True
         agent.chat_ctx.add_message(role="system", content=format_prior_answers(prior_answers))
-    await session.start(agent=agent, room=ctx.room)
+    await session.start(agent=agent, room=ctx.room, record=RECORDING_OPTIONS)
 
 
 if __name__ == "__main__":

@@ -5,8 +5,9 @@ Bilingual Chinese and English browser voice interviewer for consented market res
 ## Included
 
 - LiveKit browser voice client at `http://127.0.0.1:8010`.
-- LiveKit Python Agent with concise interview instructions and interruption support.
-- Structured answer tool, shared-secret protected API, SQLite persistence.
+- Separate setup and live interview views with explicit `listening`, `thinking`, and `speaking` turn states.
+- Live on-screen transcription labels each turn as `Interviewer` or `You`.
+- LiveKit session recording is disabled. The study brief and confirmed structured research fields are stored in SQLite; raw audio and the full transcript are not.
 - Resumable interviews: pass the displayed interview ID to `POST /api/token` as `interview_id` from a trusted internal client. The browser stores the scoped resume token locally.
 - Per-interview JSON and CSV download buttons. Results are stored locally in `data/research.db`.
 - No raw audio recording, user login, phone support, cloud database, or analytics dashboard.
@@ -30,7 +31,7 @@ uv run uvicorn app.api:app --host 127.0.0.1 --port 8010
 5. Run the LiveKit agent in another terminal:
 
 ```sh
-uv run python agent.py dev
+uv run python agent.py start
 ```
 
 6. Open `http://127.0.0.1:8010`. Configure the study topic, client, audience, objective, and optional questions. Select language. Start interview. Grant microphone permission.

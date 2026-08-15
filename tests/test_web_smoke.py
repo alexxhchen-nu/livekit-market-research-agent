@@ -35,10 +35,24 @@ def test_home_page_renders_study_setup(tmp_path, monkeypatch):
             page = browser.new_page()
             page.goto("http://127.0.0.1:8010/")
             page.wait_for_load_state("networkidle")
-            page.screenshot(path=str(tmp_path / "home.png"))
             assert page.locator("#study-topic").is_visible()
             assert page.locator("#start").is_enabled()
+            assert page.locator("#live-interview").count() == 1
+            assert page.locator("#live-interview").is_hidden()
             browser.close()
     finally:
         proc.terminate()
         proc.wait(timeout=5)
+
+
+def test_live_interview_view_has_turn_and_transcript_controls(tmp_path, monkeypatch):
+    monkeypatch.setenv("RESEARCH_DATABASE_PATH", str(tmp_path / "research.db"))
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_content((ROOT / "web" / "index.html").read_text())
+        assert page.locator("#live-interview").count() == 1
+        assert page.locator("#turn-status").count() == 1
+        assert page.locator("#transcript").count() == 1
+        assert page.locator("#recording-notice").count() == 1
+        browser.close()

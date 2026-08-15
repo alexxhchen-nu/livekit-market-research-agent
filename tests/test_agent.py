@@ -1,6 +1,10 @@
 import pytest
 
-from agent import format_prior_answers, format_study_prompt, opening_instruction, validate_field
+from agent import RECORDING_OPTIONS, format_prior_answers, format_study_prompt, opening_instruction, validate_field
+
+
+def test_livekit_recording_is_disabled():
+    assert RECORDING_OPTIONS is False
 
 
 def test_validate_field_rejects_unknown_research_field():

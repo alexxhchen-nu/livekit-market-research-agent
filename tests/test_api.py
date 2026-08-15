@@ -99,6 +99,7 @@ def test_token_persists_open_ended_study_config(tmp_path, monkeypatch):
     assert response.status_code == 200
     assert response.json()["url"] == "wss://example.livekit.cloud"
     assert response.json()["interview_id"]
+    assert response.json()["recording_enabled"] is False
     assert "very-secret-at-least-thirty-two-characters" not in response.text
 
     record = client.get(f"/api/interviews/{response.json()['interview_id']}", headers=HEADERS)

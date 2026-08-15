@@ -11,22 +11,22 @@
     <header class="masthead">
       <p class="eyebrow">FIELD NOTES / LIVE INTERVIEW</p>
       <h1>Research interview</h1>
-      <p class="intro">A short conversation about what matters to you.</p>
+      <p class="intro">A focused conversation about what matters to your audience.</p>
     </header>
 
-    <section class="interview" aria-labelledby="interview-title">
+    <section id="setup-view" class="view setup-view" aria-labelledby="setup-title">
       <div class="session-line">
-        <span id="connection-dot" class="dot" aria-hidden="true"></span>
-        <span id="connection-status" aria-live="polite">Ready to begin</span>
+        <span class="dot" aria-hidden="true"></span>
+        <span>Interview setup</span>
       </div>
-      <h2 id="interview-title">Choose your language</h2>
+      <h2 id="setup-title">Shape the conversation</h2>
       <div class="language-choice" role="group" aria-label="Interview language">
         <button class="language selected" data-language="English" type="button">English</button>
         <button class="language" data-language="Chinese" type="button">中文</button>
       </div>
 
       <details class="study-setup" open>
-        <summary>Study setup</summary>
+        <summary>Study brief</summary>
         <label for="study-topic">Topic / product</label>
         <input id="study-topic" class="study-field" type="text" maxlength="300" placeholder="e.g. Home coffee routines">
         <label for="study-client">Client or project context</label>
@@ -39,29 +39,67 @@
         <textarea id="study-questions" class="study-field" rows="3" maxlength="4000" placeholder="One question per line. Optional."></textarea>
       </details>
 
-      <p class="consent">Participation is voluntary. You may skip any question or stop at any time.</p>
+      <p class="consent">Participation is voluntary. The participant may skip any question or stop at any time.</p>
       <label class="resume-label" for="resume-id">Continue a previous interview</label>
       <input id="resume-id" class="resume-id" type="text" maxlength="100" autocomplete="off" placeholder="Interview record ID, optional">
       <button id="start" class="start" type="button">Start interview</button>
-      <button id="end" class="end" type="button" hidden>End interview</button>
-      <p id="message" class="message" role="alert"></p>
+      <p id="setup-message" class="message" role="alert"></p>
     </section>
 
-    <section class="record" aria-label="Interview record">
-      <div>
-        <p class="record-label">INTERVIEW RECORD</p>
-        <output id="interview-id">Not started</output>
+    <section id="live-interview" class="view live-view" hidden aria-labelledby="live-title">
+      <div class="live-topline">
+        <div>
+          <p class="eyebrow">LIVE INTERVIEW</p>
+          <h2 id="live-title" tabindex="-1">The conversation is open</h2>
+        </div>
+        <div class="connection-state">
+          <span id="connection-dot" class="dot" aria-hidden="true"></span>
+          <span id="connection-status" aria-live="polite">Connecting</span>
+        </div>
       </div>
-      <button id="copy-id" class="copy" type="button" disabled aria-label="Copy interview ID">Copy</button>
-    </section>
 
-    <section class="download" aria-label="Download interview results">
-      <p class="record-label">DOWNLOAD RESULTS</p>
-      <p class="download-hint">Download the current interview after the conversation.</p>
-      <div class="download-row">
-        <button id="download-json" class="download-button" type="button" disabled>Download JSON</button>
-        <button id="download-csv" class="download-button" type="button" disabled>Download CSV</button>
+      <div class="turn-card" aria-live="polite">
+        <span id="turn-icon" class="turn-icon" aria-hidden="true">•</span>
+        <div>
+          <p class="turn-kicker">CURRENT TURN</p>
+          <strong id="turn-status">Please wait</strong>
+          <p id="turn-detail">Connecting you to the interviewer.</p>
+        </div>
       </div>
+
+      <section class="transcript-panel" aria-labelledby="transcript-title">
+        <div class="transcript-heading">
+          <h3 id="transcript-title">Live conversation</h3>
+          <span id="transcript-count">No turns yet</span>
+        </div>
+        <ol id="transcript" class="transcript" aria-live="polite" aria-relevant="additions text"></ol>
+        <p id="transcript-empty" class="transcript-empty">The conversation will appear here as you speak.</p>
+      </section>
+
+      <p id="recording-notice" class="recording-notice">Audio recording and full transcript storage are off. The study setup and confirmed research answers are saved to the local study record.</p>
+      <div class="live-actions">
+        <button id="mute" class="secondary-action" type="button">Mute microphone</button>
+        <button id="end" class="end" type="button">End interview</button>
+        <button id="new-interview" class="secondary-action" type="button" hidden>New interview</button>
+      </div>
+      <p id="live-message" class="message" role="alert"></p>
+
+      <section class="record" aria-label="Interview record">
+        <div>
+          <p class="record-label">INTERVIEW RECORD</p>
+          <output id="interview-id">Not started</output>
+        </div>
+        <button id="copy-id" class="copy" type="button" disabled aria-label="Copy interview ID">Copy</button>
+      </section>
+
+      <section class="download" aria-label="Download interview results">
+        <p class="record-label">DOWNLOAD RESULTS</p>
+        <p class="download-hint">Download the current interview after the conversation.</p>
+        <div class="download-row">
+          <button id="download-json" class="download-button" type="button" disabled>Download JSON</button>
+          <button id="download-csv" class="download-button" type="button" disabled>Download CSV</button>
+        </div>
+      </section>
     </section>
   </main>
 
