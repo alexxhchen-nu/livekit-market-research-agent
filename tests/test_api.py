@@ -94,7 +94,7 @@ def test_token_persists_open_ended_study_config(tmp_path, monkeypatch):
         "questions": "What slows down your morning?\nWhat would you change?",
     }
 
-    response = client.post("/api/token", json={"language": "Chinese", "study": study})
+    response = client.post("/api/token", json={"language": "English", "study": study})
 
     assert response.status_code == 200
     assert response.json()["url"] == "wss://example.livekit.cloud"

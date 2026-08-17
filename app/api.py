@@ -61,7 +61,7 @@ class StudyConfig(BaseModel):
 class TokenRequest(BaseModel):
     interview_id: str | None = Field(default=None, max_length=100)
     resume_token: str | None = Field(default=None, max_length=128)
-    language: str = Field(default="English", pattern="^(English|Chinese|mixed)$")
+    language: str = Field(default="English", pattern="^(English)$")
     study: StudyConfig = Field(default_factory=StudyConfig)
 
 

@@ -77,9 +77,24 @@ body[data-turn="thinking"] .turn-icon { background: #b68435; }
 
 .recording-notice { margin: 15px 0 19px; padding: 10px 12px; border: 1px solid #a4beb5; color: #426260; font-size: 11px; line-height: 1.5; }
 .live-actions { display: flex; gap: 10px; margin-bottom: 5px; }
-.secondary-action { flex: 1; border: 1px solid #123a3b; border-radius: 0; padding: 11px 15px; color: #123a3b; background: transparent; cursor: pointer; }
+.record-action {
+  flex: 2;
+  border: 1px solid #123a3b;
+  border-radius: 0;
+  padding: 11px 15px;
+  color: #123a3b;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+}
+.record-action:hover, .record-action:focus-visible { background: #d8e9e2; }
+.record-action.recording {
+  color: #f8fcf8;
+  background: #df5d3e;
+  border-color: #df5d3e;
+}
+.record-action:disabled { opacity: .4; cursor: not-allowed; }
 .live-actions .end { flex: 1; }
-.secondary-action:hover, .secondary-action:focus-visible { background: #d8e9e2; }
 
 .dot { width: 9px; height: 9px; border-radius: 50%; background: #9eaaa3; }
 .dot.connected { background: #df5d3e; box-shadow: 0 0 0 4px rgb(223 93 62 / 15%); }

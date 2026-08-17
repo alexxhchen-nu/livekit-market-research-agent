@@ -1,24 +1,29 @@
 import asyncio
 import json
+import logging
 import os
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
 
 from dotenv import load_dotenv
+from livekit import rtc
 from livekit.agents import Agent, AgentServer, AgentSession, JobContext, RunContext, cli, function_tool, inference
 
 from app.api import FIELDS
 
 
+logger = logging.getLogger("market-research-agent")
+
+
 RECORDING_OPTIONS = False
 
 
-INSTRUCTIONS = """You are a friendly, neutral bilingual market-research interviewer.
+INSTRUCTIONS = """You are a friendly, neutral English-speaking market-research interviewer.
 
-Speak in the participant's preferred language: Chinese, English, or their natural mix. Keep every reply to one or two short sentences. Ask exactly one neutral question at a time. Do not sell, recommend, diagnose, or lead the participant.
+Keep every reply to one or two short sentences. Ask exactly one neutral question at a time. Do not sell, recommend, diagnose, or lead the participant.
 
-Begin by greeting the participant, ask whether they prefer Chinese or English, explain that participation is voluntary, answers may be skipped, and they may stop at any time. Ask for consent before asking research questions. Save the consent answer with save_research_answer. Do not save any other field until consent_status is consented.
+Begin by greeting the participant, explain that participation is voluntary, answers may be skipped, and they may stop at any time. Ask for consent before asking research questions. Save the consent answer with save_research_answer. Do not save any other field until consent_status is consented.
 
 Gather only study-relevant answers. Ask about current behavior, needs, decision criteria, barriers, alternatives, price sensitivity, purchase channels, and unmet needs as relevant. Do not request passwords, payment details, government identifiers, precise addresses, exact birth dates, or unnecessary sensitive information.
 
@@ -50,8 +55,8 @@ def format_prior_answers(answers: dict[str, str]) -> str:
 
 def opening_instruction(has_prior_consent: bool) -> str:
     if has_prior_consent:
-        return "Welcome the participant back in their preferred language. Continue the market-research interview without repeating consent. Ask the highest-value unanswered question."
-    return "Greet the participant. Ask whether they prefer Chinese or English, then ask for consent to take part in this voluntary market-research interview."
+        return "Welcome the participant back. Continue the market-research interview without repeating consent. Ask the highest-value unanswered question."
+    return "Greet the participant and ask for consent to take part in this voluntary market-research interview."
 
 
 def format_study_prompt(config: dict[str, str] | None) -> str:
@@ -137,7 +142,7 @@ class ResearchAgent(Agent):
 
     async def on_enter(self):
         await self.session.generate_reply(
-            instructions="Greet the participant. Ask whether they prefer Chinese or English, then ask if they agree to take part in this voluntary market-research interview."
+            instructions="Greet the participant and ask if they agree to take part in this voluntary market-research interview."
         )
 
     @function_tool
@@ -169,16 +174,14 @@ class ResearchAgent(Agent):
 
 
 def _server_options():
-    options = {}
-    if os.environ.get("LIVEKIT_NUM_IDLE_PROCESSES"):
-        options["num_idle_processes"] = int(os.environ["LIVEKIT_NUM_IDLE_PROCESSES"])
+    options = {"num_idle_processes": int(os.environ.get("LIVEKIT_NUM_IDLE_PROCESSES", 1))}
     if os.environ.get("LIVEKIT_LOAD_THRESHOLD"):
         options["load_threshold"] = float(os.environ["LIVEKIT_LOAD_THRESHOLD"])
     return options
 
 
 load_dotenv(".env")
-server = AgentServer(num_idle_processes=1, **_server_options())
+server = AgentServer(**_server_options())
 
 
 @server.rtc_session(agent_name=os.environ.get("LIVEKIT_AGENT_NAME", "market-research-agent"))
@@ -193,14 +196,14 @@ async def entrypoint(ctx: JobContext):
         asyncio.to_thread(get_study_config, interview_id),
     )
     session = AgentSession(
-        stt=inference.STT("deepgram/nova-3", language="multi"),
+        stt=inference.STT("deepgram/nova-3", language="en-US"),
         llm=inference.LLM(os.environ.get("LIVEKIT_LLM_MODEL", "openai/gpt-4.1-mini")),
         tts=inference.TTS(
             os.environ.get("LIVEKIT_TTS_MODEL", "cartesia/sonic-3"),
             voice=os.environ.get("LIVEKIT_TTS_VOICE", "f786b574-daa5-4673-aa0c-cbe3e8534c02"),
         ),
         vad=inference.VAD(),
-        turn_handling={"interruption": {"enabled": True}},
+        turn_handling={"turn_detection": "manual"},
         userdata=ResearchContext(interview_id=interview_id),
     )
     agent = ResearchAgent(interview_id, study_config)
@@ -208,6 +211,26 @@ async def entrypoint(ctx: JobContext):
         agent.consented = True
         agent.chat_ctx.add_message(role="system", content=format_prior_answers(prior_answers))
     await session.start(agent=agent, room=ctx.room, record=RECORDING_OPTIONS)
+    session.input.set_audio_enabled(False)
+
+    @ctx.room.local_participant.register_rpc_method("start_turn")
+    async def start_turn(_data: rtc.RpcInvocationData):
+        await session.interrupt()
+        session.clear_user_turn()
+        session.input.set_audio_enabled(True)
+
+    @ctx.room.local_participant.register_rpc_method("end_turn")
+    async def end_turn(_data: rtc.RpcInvocationData):
+        session.input.set_audio_enabled(False)
+        try:
+            user_transcript = await session.commit_user_turn(
+                transcript_timeout=5.0, stt_flush_duration=2.0
+            )
+            logger.info("user turn committed", extra={"transcript": user_transcript})
+        except asyncio.CancelledError:
+            logger.info("commit user turn cancelled")
+        except Exception as error:
+            logger.error("error committing user turn", exc_info=error)
 
 
 if __name__ == "__main__":

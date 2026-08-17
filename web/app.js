@@ -9,7 +9,7 @@ const liveView = document.querySelector("#live-interview");
 const startButton = document.querySelector("#start");
 const endButton = document.querySelector("#end");
 const newInterviewButton = document.querySelector("#new-interview");
-const muteButton = document.querySelector("#mute");
+const recordButton = document.querySelector("#record");
 const copyButton = document.querySelector("#copy-id");
 const status = document.querySelector("#connection-status");
 const dot = document.querySelector("#connection-dot");
@@ -26,7 +26,6 @@ const transcript = document.querySelector("#transcript");
 const transcriptEmpty = document.querySelector("#transcript-empty");
 const transcriptCount = document.querySelector("#transcript-count");
 const recordingNotice = document.querySelector("#recording-notice");
-const languageButtons = [...document.querySelectorAll(".language")];
 
 const studyFields = {
   topic: "#study-topic",
@@ -36,12 +35,12 @@ const studyFields = {
   questions: "#study-questions",
 };
 
-let language = "English";
 let room;
 let currentInterviewId;
 let currentDownloadToken;
 let agentParticipant;
-let micEnabled = true;
+let micEnabled = false;
+let recordingActive = false;
 const transcriptItems = new Map();
 
 function setStatus(text, connected = false) {
@@ -59,11 +58,11 @@ function showLiveMessage(text) {
 
 function setTurn(state, detail) {
   const labels = {
-    speaking: ["Interviewer is speaking", "Listen first. Your microphone will open when the question is complete.", "voice"],
-    thinking: ["Interviewer is thinking", "Your answer was received. Give the interviewer a moment.", "thinking"],
-    listening: ["Your turn to speak", "The microphone is open. Answer whenever you are ready.", "mic"],
+    speaking: ["Interviewer is speaking", "Listen to the question.", "voice"],
+    thinking: ["Interviewer is thinking", "Press Record answer when you're ready to respond.", "thinking"],
+    listening: ["Recording your answer", "Press Stop & send when you are finished.", "mic"],
   };
-  const [label, copy, icon] = labels[state] || labels.listening;
+  const [label, copy, icon] = labels[state] || labels.thinking;
   turnStatus.textContent = label;
   turnDetail.textContent = detail || copy;
   turnIcon.textContent = icon === "mic" ? "◉" : icon === "thinking" ? "…" : "◌";
@@ -95,7 +94,7 @@ async function requestSession() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      language,
+      language: "English",
       interview_id: resumeId.value.trim() || null,
       resume_token: resumeToken(),
       study: collectStudy(),
@@ -131,15 +130,19 @@ function currentAgentState() {
 }
 
 function refreshTurnState() {
+  if (recordingActive) {
+    setTurn("listening");
+    return;
+  }
   const state = currentAgentState();
   if (state === "speaking") setTurn("speaking");
   else if (state === "thinking") setTurn("thinking");
-  else if (micEnabled) setTurn("listening");
-  else setTurn("thinking", "Enable your microphone before answering.");
+  else setTurn("thinking");
 }
 
 function handleAgentState(participant) {
   agentParticipant = participant;
+  if (!recordingActive) recordButton.disabled = false;
   refreshTurnState();
 }
 
@@ -167,6 +170,57 @@ function resetTranscript() {
   transcript.replaceChildren();
   transcriptEmpty.hidden = false;
   transcriptCount.textContent = "No turns yet";
+}
+
+async function callRpc(method, payload = "") {
+  if (!agentParticipant?.identity) throw new Error("Agent is not connected");
+  return room.localParticipant.performRpc({
+    destinationIdentity: agentParticipant.identity,
+    method,
+    payload,
+    responseTimeout: method === "end_turn" ? 10000 : 5000,
+  });
+}
+
+async function startRecording() {
+  if (!agentParticipant?.identity) return;
+  try {
+    await callRpc("start_turn");
+    await room.localParticipant.setMicrophoneEnabled(true);
+    micEnabled = true;
+    recordingActive = true;
+    recordButton.textContent = "Stop & send";
+    recordButton.classList.add("recording");
+    showLiveMessage("");
+    setTurn("listening", "Recording... Press Stop & send when finished.");
+  } catch {
+    showLiveMessage("Could not start recording. Please try again.");
+  }
+}
+
+async function stopRecording() {
+  if (!agentParticipant?.identity) return;
+  try {
+    await callRpc("end_turn");
+  } catch {
+    showLiveMessage("Could not send answer. Please try again.");
+    return;
+  }
+  try {
+    await room.localParticipant.setMicrophoneEnabled(false);
+  } catch {
+    // mic may already be disabled
+  }
+  micEnabled = false;
+  recordingActive = false;
+  recordButton.textContent = "Record answer";
+  recordButton.classList.remove("recording");
+  setTurn("thinking", "Processing your answer.");
+}
+
+async function toggleRecord() {
+  if (recordingActive) await stopRecording();
+  else await startRecording();
 }
 
 async function startInterview() {
@@ -198,9 +252,13 @@ async function startInterview() {
     });
     room.on(RoomEvent.Disconnected, () => {
       setStatus("Interview ended");
+      recordingActive = false;
+      micEnabled = false;
+      recordButton.disabled = true;
+      recordButton.textContent = "Record answer";
+      recordButton.classList.remove("recording");
       setTurn("thinking", "This interview has ended. Download the record below.");
       endButton.hidden = true;
-      muteButton.hidden = true;
       newInterviewButton.hidden = false;
     });
     room.registerTextStreamHandler("lk.transcription", async (reader, participantInfo) => {
@@ -213,9 +271,8 @@ async function startInterview() {
         for await (const chunk of reader) {
           text += chunk;
           addTranscript(isAgent ? "agent" : "user", text, id);
-          setTurn(isAgent ? "speaking" : "listening");
         }
-        if (!isAgent) setTurn("thinking");
+        if (!isAgent && !recordingActive) setTurn("thinking");
       } catch {
         showLiveMessage("Live transcription is temporarily unavailable. The interview can continue.");
       }
@@ -224,15 +281,6 @@ async function startInterview() {
     await room.connect(session.url, session.token);
     for (const participant of room.remoteParticipants.values()) {
       if (participant.isAgent) bindAgent(participant);
-    }
-    try {
-      await room.localParticipant.setMicrophoneEnabled(true);
-      micEnabled = true;
-      muteButton.textContent = "Mute microphone";
-    } catch {
-      micEnabled = false;
-      muteButton.textContent = "Enable microphone";
-      showLiveMessage("Microphone is unavailable. Check browser permission, then enable it to answer.");
     }
     setStatus("Interview in progress", true);
     refreshTurnState();
@@ -246,22 +294,6 @@ async function startInterview() {
 
 function endInterview() {
   room?.disconnect();
-}
-
-async function toggleMute() {
-  if (!room) return;
-  const nextEnabled = !micEnabled;
-  try {
-    await room.localParticipant.setMicrophoneEnabled(nextEnabled);
-    micEnabled = nextEnabled;
-    muteButton.textContent = micEnabled ? "Mute microphone" : "Enable microphone";
-    showLiveMessage("");
-  } catch {
-    micEnabled = false;
-    muteButton.textContent = "Enable microphone";
-    showLiveMessage("Microphone is unavailable. Check browser permission, then try again.");
-  }
-  refreshTurnState();
 }
 
 function startNewInterview() {
@@ -293,13 +325,9 @@ async function downloadResults(format) {
   URL.revokeObjectURL(link.href);
 }
 
-languageButtons.forEach((button) => button.addEventListener("click", () => {
-  language = button.dataset.language;
-  languageButtons.forEach((item) => item.classList.toggle("selected", item === button));
-}));
 startButton.addEventListener("click", startInterview);
 endButton.addEventListener("click", endInterview);
-muteButton.addEventListener("click", toggleMute);
+recordButton.addEventListener("click", toggleRecord);
 newInterviewButton.addEventListener("click", startNewInterview);
 copyButton.addEventListener("click", copyInterviewId);
 downloadJson.addEventListener("click", () => downloadResults("json"));
