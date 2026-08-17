@@ -31,10 +31,24 @@ uv run uvicorn app.api:app --host 127.0.0.1 --port 8010
 5. Run the LiveKit agent in another terminal:
 
 ```sh
+# Local development (no worker load threshold, fastest startup)
+uv run python agent.py dev
+
+# Production / hosted deployment
 uv run python agent.py start
 ```
 
 6. Open `http://127.0.0.1:8010`. Configure the study topic, client, audience, objective, and optional questions. Select language. Start interview. Grant microphone permission.
+
+## Production tuning
+
+If the agent worker reports it is at full capacity on a small host, raise the load threshold or reduce idle warm processes:
+
+```sh
+LIVEKIT_LOAD_THRESHOLD=1.0 LIVEKIT_NUM_IDLE_PROCESSES=1 uv run python agent.py start
+```
+
+`LIVEKIT_LOAD_THRESHOLD` is the CPU fraction at which the worker stops accepting new jobs. `LIVEKIT_NUM_IDLE_PROCESSES` controls how many worker processes are kept warm.
 
 ## Data flow
 

@@ -168,8 +168,17 @@ class ResearchAgent(Agent):
             return "The answer could not be saved. Ask the participant to continue while you retry later."
 
 
+def _server_options():
+    options = {}
+    if os.environ.get("LIVEKIT_NUM_IDLE_PROCESSES"):
+        options["num_idle_processes"] = int(os.environ["LIVEKIT_NUM_IDLE_PROCESSES"])
+    if os.environ.get("LIVEKIT_LOAD_THRESHOLD"):
+        options["load_threshold"] = float(os.environ["LIVEKIT_LOAD_THRESHOLD"])
+    return options
+
+
 load_dotenv(".env")
-server = AgentServer(num_idle_processes=1)
+server = AgentServer(num_idle_processes=1, **_server_options())
 
 
 @server.rtc_session(agent_name=os.environ.get("LIVEKIT_AGENT_NAME", "market-research-agent"))

@@ -213,6 +213,7 @@ async function startInterview() {
         for await (const chunk of reader) {
           text += chunk;
           addTranscript(isAgent ? "agent" : "user", text, id);
+          setTurn(isAgent ? "speaking" : "listening");
         }
         if (!isAgent) setTurn("thinking");
       } catch {
