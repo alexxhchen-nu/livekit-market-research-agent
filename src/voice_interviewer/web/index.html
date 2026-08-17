@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>语音访谈</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app">
+      <h1>语音访谈</h1>
+      <div class="controls">
+        <label for="language">语言</label>
+        <select id="language" name="language">
+          <option value="zh-CN">中文</option>
+          <option value="en-US">English</option>
+        </select>
+        <button id="start" type="button">开始访谈</button>
+      </div>
+
+      <p id="status" role="status" aria-live="polite"></p>
+      <section id="transcript" aria-live="polite" aria-label="访谈记录"></section>
+
+      <form id="turn-form">
+        <label for="text">您的回答</label>
+        <textarea id="text" name="text" rows="4" maxlength="4000" disabled required></textarea>
+        <div class="controls">
+          <button id="microphone" type="button" hidden disabled>开始录音</button>
+          <button id="submit" type="submit" disabled>提交回答</button>
+        </div>
+      </form>
+    </main>
+    <script src="/app.js" defer></script>
+  </body>
+</html>
