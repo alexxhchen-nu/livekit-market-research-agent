@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "opensource-voice-agent"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["fastapi>=0.115", "httpx>=0.28", "pydantic>=2.10", "python-dotenv>=1.0", "uvicorn>=0.34"]
+
+[project.optional-dependencies]
+voice = ["pipecat-ai>=1.7.0"]
+
+[dependency-groups]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.25"]
+
+[tool.setuptools.package-data]
+voice_interviewer = ["web/*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
