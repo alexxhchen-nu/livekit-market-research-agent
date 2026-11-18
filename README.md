@@ -78,3 +78,13 @@ node --check web/app.js
 - Open-ended study configuration: topic, client context, target audience, objective, optional custom questions.
 
 Do not paste credentials into chat. Put them in `.env` locally.
+
+
+## Imported projects
+
+In November 2026 the following related repo was imported here with full git history (`git subtree`). The original repository was not deleted.
+
+| Folder | Origin repo | What it is |
+|--------|-------------|------------|
+| root (`agent.py`, `app/`, `web/`) | `livekit-market-research-agent` (this repo) | LiveKit browser voice interviewer for consented market research |
+| `opensource-voice-agent/` | [opensource-voice-agent](https://github.com/alexxhchen-nu/opensource-voice-agent) | Local structured voice/text interviewer (FastAPI + SQLite, modular STT/TTS) |
